@@ -17,6 +17,7 @@ use warnings;
 # Use these modules
 use Data::Dumper;
 use Mail::IMAPClient;
+#use Authen::NTLM; #Can be used with exchange 2007 and prior
 use MIME::Parser;
 use MIME::Parser::Filer;
 use XML::Simple;
@@ -26,11 +27,16 @@ use Socket qw(inet_pton AF_INET AF_INET6);
 
 # Script Configuration Options
 my $debug = 0;
-my $imapserver = 'localhost:143';
+my $imapserver = 'localhost';
+my $imapport = '143';
 my $imapuser = '';
 my $imappass = '';
+my $imapssl = 0;
+my $imapauthmech = 'PLAIN';
+my $imapignoresizeerrors = 1; #Sometimes needed for size mismatches
 my $mvfolder = 'Inbox.processed';
 my $readfolder = 'Inbox';
+my $dbhost = 'localhost';
 my $dbname = 'dmarc';
 my $dbuser = 'dmarc';
 my $dbpass = '';
@@ -48,7 +54,7 @@ my $imap = Mail::IMAPClient->new( Server  => $imapserver,
         # module uses eval, so we use $@ instead of $!
         or die "IMAP Failure: $@";
 
-my $dbh = DBI->connect("DBI:mysql:database=$dbname",
+my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",
                             $dbuser, $dbpass)
             or die "Cannot connect to database\n";
 ####################################################################
@@ -93,8 +99,8 @@ my $dbh = DBI->connect("DBI:mysql:database=$dbname",
         my $ent = $parser->parse_data($imap->message_string($msg));
 
 	my $body = $ent->bodyhandle;
-        my $mtype = $ent->mime_type;
-        my $subj = $ent->get('subject');
+        my $mtype = defined $ent->mime_type ? $ent->mime_type : 'None_specified';
+        my $subj = defined $ent->get('subject') ? $ent->get('subject') : 'None specified';
 
 	if ($debug == 1) {
         print " $subj\n";
